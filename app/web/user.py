@@ -119,7 +119,7 @@ def deleteMyFriend(currentUserId, TargetUserId):
         return jsonify({'res_msg': 'fail', 'res_code': 202, 'user_exist': False})
 
 
-@web.route('/addMyFriend/<int:currentUserId>/<int:TargetUserUniqueId>')
+@web.route('/addMyFriend/<int:3>/<int:TargetUserUniqueId>')
 def addMyFriend(currentUserId, TargetUserUniqueId):
     '''
     1.添加好友首先是要添加到审批表

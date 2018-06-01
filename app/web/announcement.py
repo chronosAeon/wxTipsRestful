@@ -18,6 +18,7 @@ from ..models.announce import announce
 # 给别人发的事项
 # 别人发的事项确认
 
+# completed
 @web.route('/getAnnouncesById/<int:userId>')
 def getAnnouncesById(userId):
     '''
@@ -35,6 +36,7 @@ def getAnnouncesById(userId):
     return jsonify(Announce_list)
 
 
+# completed
 @web.route('/modifyAnnounceById/<int:userId>/<int:announceId>')
 def modifyAnnounceById(userId, announceId):
     '''
@@ -86,6 +88,7 @@ def modifyAnnounceById(userId, announceId):
             return jsonify({'res_code': 400, 'res_msg': 'no this item'})
 
 
+# completed
 def write_audio_in_staticfile(file_name, content):
     '''
     把音频文件存储在指定目录下
@@ -102,6 +105,7 @@ def write_audio_in_staticfile(file_name, content):
         return False
 
 
+# completed
 @web.route('/addAnnounceById/<int:userId>', methods=['POST'])
 def addAnnounceById(userId):
     '''
@@ -110,21 +114,39 @@ def addAnnounceById(userId):
     :param annonce:公告数据，这里公告数据前端挥发一个值
     :return:状态值
     '''
-    new_announce = announce()
-    new_announce.user_id = userId
-    '''
-    获取表单里面的数据，这个地方要考虑前端的录音文件的处理，如果是只是一段微信存储的url，
-    那么要考虑到微信服务器能帮你暂存的时间，如果是发到服务器，要考虑服务器的文件存储。
-    '''
-    # new_announce.announce_content = request.form.
 
-    db.session.add(new_announce)
-    db.session.commit()
+    if request.files['announce_type'] == 'audio':
+        audio = request.files['audio']
+        new_announce = announce()
+        new_announce.user_id = userId
+        new_announce.valid_time = request.form['valid_time']
+        new_announce.announce_type = request.form['announce_type']
+        file_name = time.time() + audio.filename
+        write_audio_in_staticfile(file_name, audio)
+        new_announce.announce_content = file_name
+        db.session.add(new_announce)
+        db.session.commit()
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
+    else:
+        '''
+        text情况
+        '''
+        new_announce = announce()
+        new_announce.user_id = userId
+        new_announce.valid_time = request.form['valid_time']
+        new_announce.announce_type = request.form['announce_type']
+        new_announce.announce_content = request.form['content']
+        db.session.add(new_announce)
+        db.session.commit()
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
 
+
+# none
 def is_announce_audio():
     pass
 
 
+# tips
 @web.route('/deleteAnnounceById/<int:userId>/<int:announceId>')
 def deleteAnnounceById(userId, announceId):
     '''
@@ -147,6 +169,7 @@ def deleteAnnounceById(userId, announceId):
         return jsonify({'res_code': 400, 'res_msg': 'fail'})
 
 
+# completed
 @web.route('/searchAnnounceById/<int:userId>/<int:announceId>')
 def searchAnnounceById(userId, announceId):
     '''
@@ -162,10 +185,37 @@ def searchAnnounceById(userId, announceId):
     else:
         return jsonify({'res_code': 200, 'res_msg': 'no this item'})
 
+
+# completed
 @web.route('/get_audit_AnnouncesById/<int:userId>')
 def get_audit_AnnouncesById(userId):
-    pass
+    '''
+    被添加id
+    :param userId: 被添加使用者id
+    :return: 状态值
+    '''
+    all_audits = db.session.query(audit_announce).filter_by(user_id_added=userId).all()
+    if len(all_audits) > 0:
+        '''
+        查找到数组
+        '''
+        audits_list = []
+        for audit in all_audits:
+            key_list = ('user_id_add', 'valid_time', 'annouce_type', 'announce_content')
+            value_list = (
+                all_audits.user_id_add, all_audits.valid_time, all_audits.announce_type, all_audits.announce_content)
+            new_audit = dict(zip(key_list, value_list))
+            new_audit_jsonify = json.dumps(new_audit)
+            audits_list.append(new_audit_jsonify)
+        return jsonify(audits_list)
+    else:
+        '''
+        没有查找到
+        '''
+        return jsonify([])
 
+
+# complete
 @web.route('/addAnnounceToFriend/<int:userId>/<int:targetId>', methods=['POST'])
 def addAnnounceToFriend(userId, targetId):
     '''
@@ -176,13 +226,36 @@ def addAnnounceToFriend(userId, targetId):
     :return: 状态值
     '''
     '''通过id吧事项发到事件确认列表'''
-    new_audit_announce = audit_announce()
-    new_audit_announce.user_id_added = targetId
-    new_audit_announce.user_id_add = userId
+    if request.files['announce_type'] == 'audio':
+        '''
+        是音频输入
+        '''
+        new_audit_announce = audit_announce()
+        new_audit_announce.user_id_added = targetId
+        new_audit_announce.user_id_add = userId
+        new_audit_announce.valid_time = request.form['valid_time']
+        new_audit_announce.announce_type = 'audio'
+        audio = request.files['audio']
+        file_name = time.time() + audio.filename
+        write_audio_in_staticfile(file_name, audio)
+        new_audit_announce.announce_content = file_name
+        db.session.add(new_audit_announce)
+        db.session.commit()
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
+    else:
+        new_audit_announce = audit_announce()
+        new_audit_announce.user_id_added = targetId
+        new_audit_announce.user_id_add = userId
+        new_audit_announce.valid_time = request.form['valid_time']
+        new_audit_announce.announce_type = 'text'
+        new_audit_announce.announce_content = request.form['content']
+        db.session.add(new_audit_announce)
+        db.session.commit()
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
     # new_audit_announce.valid_time =
-    pass
 
 
+# none
 @web.route('/comfirmAnnounce/<int:announceId>')
 def comfirm(announceId):
     '''
@@ -190,11 +263,22 @@ def comfirm(announceId):
     :param announceId:数据id号
     :return: 状态值
     '''
-    new_audit_announce = audit_announce()
-    new_audit_announce.id
-    pass
+    item = db.session.query(audit_announce).filter_by(id=announceId).first()
+    if item:
+        '''
+        查找到对应id的announce
+        '''
+        new_announce = announce()
+        new_announce.user_id = item.user_id_added
+        new_announce.valid_time = item.valid_time
+        new_announce.announce_type = item.announce_type
+        new_announce.announce_content = item.announce_content
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
+    else:
+        return jsonify({'res_code': 400, 'res_msg': 'fail'})
 
 
+# none
 @web.route('/resistAnnounce/<int:announceId>')
 def resist(announceId):
     '''
@@ -202,4 +286,13 @@ def resist(announceId):
     :param announceId:公告id
     :return: 状态值
     '''
-    pass
+    item = db.session.query(audit_announce).filter_by(id=announceId).first()
+    if item:
+        '''
+        查找到对应id的announce
+        '''
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'res_code': 200, 'res_msg': 'success'})
+    else:
+        return jsonify({'res_code': 400, 'res_msg': 'fail'})
